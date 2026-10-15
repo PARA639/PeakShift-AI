@@ -1,0 +1,7 @@
+load_id,building_id,load_name,rated_kW,classification,allowed_start,allowed_end,current_start,current_end,max_comfort_impact_pct
+LOAD_PUMP_01,BLDG_001,Hostel Water Pumping,45.0,flexible,10:00,16:00,17:00,19:00,10.0
+LOAD_EV_01,BLDG_002,Fleet EV Charging,60.0,flexible,22:00,06:00,17:00,20:00,0.0
+LOAD_BATT_01,BLDG_003,Non-urgent Battery Storage,35.0,flexible,10:00,15:00,17:30,19:30,0.0
+LOAD_LAB_01,BLDG_004,Lab Equipment & Server Rooms,230.0,protected,N/A,N/A,00:00,23:45,0.0
+LOAD_UNCLASS_01,BLDG_005,Unclassified Loads,70.0,unregistered,N/A,N/A,00:00,23:45,0.0
+LOAD_COOLING_01,BLDG_001,Pre-cooling HVAC Thermal Shift,120.0,flexible,13:00,16:00,16:00,20:00,15.0
