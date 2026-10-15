@@ -1,168 +1,116 @@
-**PeakShift-AI**
+# PeakShift-AI ⚡
+> **Intelligent Load Scheduling and Demand Response for Campus Energy Management**  
+> *A Problem-First Approach to "The 4 PM Spike"*  
+> **AI Synergy Hackathon 2026 · Case 05 · Track: AI for Energy & Environment**
 
-A problem-first approach to "The 4 PM Spike" AI Synergy Hackathon 2026 · Case 05 · Track: AI for Energy & Environment
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![UI Framework](https://img.shields.io/badge/Streamlit-1.25%2B-FF4B4B.svg)](https://streamlit.io/)
+[![Backend Engine](https://img.shields.io/badge/FastAPI-0.95%2B-009688.svg)](https://fastapi.tiangolo.com/)
+[![Database](https://img.shields.io/badge/SQLite3-peakshift.db-003B57.svg)](https://www.sqlite.org/)
+[![ML Model](https://img.shields.io/badge/AI--Model-Random--Forest--Regressor-green.svg)](https://scikit-learn.org/)
+[![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](#12-team--intellectual-property)
 
-PeakShift AI helps facilities staff answer three questions before any optimization happens: which loads drive the peak, which of them can move, and did our intervention actually work?
+---
 
-Status
+## 📌 Executive Summary
 
-Round 1: Problem Discovery & Technical Feasibility Proof. This repository is a feasibility proof, not a finished product. All demonstrations use synthetic data unless stated otherwise. Nothing here should be read as a validated result on real facility data.
+**PeakShift-AI** is an intelligent, software-only campus energy advisory and demand-response system designed to flatten the weekday **4:00 PM – 8:00 PM net grid peak ("The 4 PM Spike")**.
 
-1. Problem Framing
+Instead of acting as an uninspectable "black-box" control model, PeakShift-AI empowers campus facilities engineers by systematically answering three core operational questions *before* any optimization takes place:
+1. **Which loads drive the peak?** (Attribution across uneven 15-minute smart meters & monthly aggregates)
+2. **Which of them can safely move?** (Staff-confirmed flexibility windows with strict safety hard-locks)
+3. **Did our intervention actually work?** (Counterfactual verification measured against forecast error bounds)
 
-We selected Framing P1: Flexibility and attribution gap.
+---
 
-Facilities staff can see that demand spikes around 4 PM, but across uneven meters they cannot identify which loads drive the peak, cannot tell which loads are movable, and cannot verify whether an intervention worked. A forecasting model or scheduler built on top of that gap would produce confident recommendations that no one can check. P1 keeps the problem definition upstream of the technology: establish attribution, flexibility and verifiability first, then let forecasting and scheduling serve that loop.
+## 🚦 Round 1 Status & Prototype Scope
 
-Framings considered
-#	Framing	Decision
-P1	Flexibility and attribution gap	Selected. Addresses the root uncertainty the others depend on
-P2	Forecasting gap	Used as a component. A forecast of an unattributed peak is hard to act on
-P3	Tariff / cost optimization	Not selected. Assumes cost is the binding pain point
-P4	Automated control / scheduling	Used as a component. Automating unattributed loads risks operational harm
-P5	Metering / data infrastructure	Not selected. A capital project; P1 works around uneven metering
+* **Status**: Round 1 — Problem Discovery, Technical Feasibility Proof & Working Prototype.
+* **Data Resolution**: All datasets operate on a **15-minute interval grid (96 slots/day)** across 120 synthetic evaluation days.
+* **Safety Boundary**: Version 1 provides **zero direct physical control** over campus electrical infrastructure. Every proposed schedule is labelled as a **SIMULATION** and blocked until an authorized human engineer logs approval inside the audit trail.
+* **Critical Protection**: Laboratory equipment, server rooms, and student welfare loads are hard-locked (`PROTECTED`) and excluded from any load shifting.
 
-Note: P2 to P5 labels should be aligned with the official Case 05 wording before submission. [verify]
+---
 
-2. Evidence Map
-Tag	Item
-[CASE]	Demand peaks around 4 PM
-[CASE]	Meter coverage is uneven across the facility
-[CASE]	Staff cannot attribute the peak to specific loads
-[CASE]	Staff cannot verify intervention results
-[ASSUMPTION]	The peak is driven by a small set of recurring loads (e.g. HVAC, pumps, EV charging)
-[ASSUMPTION]	Some of those loads can shift by 30 to 90 minutes without harming operations
-[ASSUMPTION]	Peak reduction carries a real cost (demand charge or capacity penalty)
-[ASSUMPTION]	Staff will act on recommendations they can inspect and trust
-[UNKNOWN]	Meter granularity, sampling interval and data quality
-[UNKNOWN]	Which loads are truly movable, and their operational constraints
-[UNKNOWN]	A credible "before vs. after" baseline (weather, occupancy, seasonality)
-[UNKNOWN]	Whether the 4 PM peak is the true cost driver or one of several
+## 📄 Table of Contents
+1. [Problem Discovery & Framing (Framing P1)](#1-problem-discovery--framing)
+2. [Evidence Map (Case Evidence vs Assumptions)](#2-evidence-map)
+3. [End-to-End System Workflow](#3-end-to-end-system-workflow)
+4. [Technical System Architecture](#4-technical-system-architecture)
+5. [Streamlit UI Wireframe & Dashboard Layout](#5-streamlit-ui-wireframe--dashboard-layout)
+6. [Core Algorithm Pseudocode](#6-core-algorithm-pseudocode)
+7. [Dataset Exploration & Data Schemas](#7-dataset-exploration--data-schemas)
+8. [Repository Directory Structure](#8-repository-directory-structure)
+9. [API Specifications & Verification Tests](#9-api-specifications--verification-tests)
+10. [Limitations & Open Questions](#10-limitations--open-questions)
+11. [Disclosures & Human-AI Collaboration](#11-disclosures--human-ai-collaboration)
+12. [Quickstart & Local Setup Guide](#12-quickstart--local-setup-guide)
+13. [Team & Intellectual Property](#13-team--intellectual-property)
 
-Full version: docs/evidence_map.md
+---
 
-[CASE] rows must be traceable to the official case sheet. Anything that is not traceable belongs under [ASSUMPTION]. [verify] against the context sheet before submission.
+## 1. Problem Discovery & Framing
 
-3. Approach
+We selected **Framing P1: Flexibility and Attribution Gap**.
 
-peakshift AI is a loop, not a single model. Forecasting and scheduling are modules inside it.
+Facilities staff can observe that campus electrical demand spikes sharply between 4 PM and 8 PM, but across uneven metering (some buildings have continuous 15-minute smart meters, while others have only monthly utility bills), they cannot identify which specific loads drive the spike, cannot tell which loads are safely movable, and cannot verify whether an intervention produced genuine energy savings.
 
-Uneven meters +sub-meters
-Attribution: which loadsdrive the 4 PM peak
-Flexibility scoring: whichloads are movable, withstaff input
-Forecast + schedulesuggestions
-Staff approve / override
-Verification: baseline vs.actual
-Stage	Purpose	Human role
-Attribution	Estimate each load's contribution to the peak, with uncertainty	Review where uncertainty is high
-Flexibility scoring	Rank loads by how movable they are	Confirm operational constraints
-Forecast + schedule	Suggest shifts that reduce the peak	Approve or override
-Verification	Compare outcome to a no-intervention baseline	Decide whether the result is credible
-4. Technical Feasibility Proof
+Building a complex AI forecasting or automated control model on top of that gap produces confident recommendations that operators cannot inspect or trust. **Framing P1 keeps the problem definition upstream of technology:** establish attribution, load flexibility, and verifiable baselines first—then deploy machine learning forecasting and optimization to serve that human decision loop.
 
-The goal is to show that P1 is testable, not that a product exists.
+### Framings Comparison Matrix
 
-4.1 Attribution on uneven meters (notebook)
+| ID | Problem Framing | Decision | Rationale & Scope Boundary |
+| :--- | :--- | :--- | :--- |
+| **P1** | **Flexibility & Attribution Gap** | **SELECTED** | Addresses the root operational uncertainty that all downstream scheduling relies upon. |
+| **P2** | Forecasting Gap | Component | Embedded as a module inside P1. Forecasting an unattributed peak cannot be acted upon safely. |
+| **P3** | Tariff & Cost Optimization | Excluded | Assumes financial tariff structure is the primary pain point rather than electrical capacity limits. |
+| **P4** | Automated Equipment Control | Component | Used strictly in human-gated simulation mode. Direct automation risks operational & research harm. |
+| **P5** | Metering Infrastructure Project | Excluded | A capital hardware project; P1 works software-side around uneven metering realities. |
 
-notebooks/01_attribution_feasibility.ipynb
+---
 
-Generates synthetic load profiles for 4 to 5 loads with a 4 PM peak
-Hides some sub-meters so only a main meter and partial sub-meters remain
-Estimates each load's share of the peak and reports uncertainty
-Documents where attribution degrades as meter coverage drops
-4.2 Verification logic (pseudocode)
+## 2. Evidence Map
 
-pseudocode.md
+To maintain strict scientific hygiene during Round 1, facts derived from the case brief (`[CASE]`), unverified working hypotheses (`[ASSUMPTION]`), and operational unknowns (`[UNKNOWN]`) are categorized separately:
 
-baseline   = predict_load(weather, occupancy, day_type)   # no-intervention counterfactual
-actual     = measured_load_after_shift
-savings    = baseline_peak - actual_peak
-band       = baseline_error_band
-if savings <= band:
-    report "not verifiable"
-else:
-    report savings with confidence
+| Tag | Item / Signal | Operational Handling in PeakShift-AI |
+| :--- | :--- | :--- |
+| `[CASE]` | Demand spikes sharply weekday 4:00 – 8:00 PM | Targeted via Net Demand optimization (`Campus Load - Solar Output`). |
+| `[CASE]` | Metering coverage is uneven across campus | Solved via 15-min interpolation and confidence flags (`HIGH` vs `LOW`). |
+| `[CASE]` | Staff cannot attribute peak to specific loads | Solved by load registry mapping and rolling statistical anomaly detection. |
+| `[CASE]` | Past awareness campaigns had short-lived impact | Replaced with specific, owner-confirmed, actionable load shift schedules. |
+| `[ASSUMPTION]` | Evening peak is driven by a small set of loads | Modeled on HVAC pre-cooling, water pumping, EV charging, and battery storage. |
+| `[ASSUMPTION]` | Loads can shift by 30–90 mins without harm | Requires staff confirmation step in registry; strict shift windows enforced. |
+| `[ASSUMPTION]` | Peak reduction carries real demand charge savings | Assumes 10–15% peak shave lowers campus monthly maximum capacity penalties. |
+| `[ASSUMPTION]` | Staff will act on recommendations they can inspect | Solved using interactive Streamlit plan toggles and explanation panels. |
+| `[UNKNOWN]` | Real meter noise, granularity, and sampling gaps | Characterized via synthetic holdout testing; needs real field meter audit. |
+| `[UNKNOWN]` | True movable fraction of HVAC vs lab loads | Lab & server loads are hard-locked as `PROTECTED` (target zero interruption). |
+| `[UNKNOWN]` | Credible baseline accounting for weather/occupancy | Addressed by Same-Hour Baseline forecast in counterfactual verification logic. |
 
-The key design choice: a savings claim is only reported if it exceeds the baseline's own error.
+---
 
-4.3 Architecture
+## 3. End-to-End System Workflow
 
-docs/architecture.md contains the diagram above and module responsibilities.
+PeakShift-AI operates as an interactive **human-in-the-loop decision loop**:
 
-5. PeakShift-AI/
-├── .gitignore               # Ignores virtual environments, caches, and DB files
-├── README.md                # System documentation, Architecture Diagram, Wireframe & Pseudocode
-├── requirements.txt         # Production Python package dependencies
-├── db.py                    # SQLite Database Manager (peakshift.db)
-├── data_generator.py        # 15-minute synthetic data engine & SQLite DB populator
-├── app.py                   # Streamlit Centralised Dashboard UI (7-Point Solution)
-├── api.py                   # FastAPI Backend REST Server
-├── test_api.py              # Pytest Automated Test Suite (AT1–AT6 Verification)
-│
-├── notebooks/
-│   └── 01_peakshift_analysis.py  # Data exploration, Random Forest training & evaluation
-│
-├── src/                     # Core Business Logic & AI Engines
-│   ├── __init__.py          # Python package marker
-│   ├── ingestion.py         # Timestamp grid alignment, cleaning & data reliability scoring
-│   ├── spike_detector.py    # Electricity spike & unusual consumption anomaly detector
-│   ├── forecaster.py        # Random Forest Regressor AI demand forecasting model
-│   ├── optimizer.py         # 4–8 PM Peak shift optimizer with rebound peak prevention
-│   └── evaluator.py         # Acceptance test evaluator module (AT1–AT6)
-│
-└── data/
-    └── raw/                 # Generated 15-minute interval datasets
-        ├── environment_data.csv     # Weather & Rooftop Solar kW generation (15-min)
-        ├── smart_meters_15min.csv   # Active demand kW across campus buildings
-        ├── monthly_buildings.csv    # Low-confidence monthly aggregate buildings
-        └── load_registry.csv        # Staff load classification (flexible vs protected)
-
-Files are added as they are completed. Anything not yet present is planned, not claimed.
-
-6. What This Proves and What It Does Not
-
-It shows:
-
-The P1 loop is well-defined and can be decomposed into testable steps
-Attribution is feasible in principle on synthetic data with partial metering
-Verification can be made conservative by design
-
-It does not show:
-
-Performance on real facility data
-That loads are actually movable in practice (needs staff input)
-Real savings or cost impact
-7. Limitations and Open Questions
-Synthetic data reflects our assumptions, so results will look cleaner than reality
-Attribution quality depends on meter coverage; this is characterised, not solved
-Flexibility cannot be inferred from meter data alone and requires operator knowledge
-The baseline model must be validated against real weather and occupancy variation
-8. Use of AI and Human Judgment
-
-(Disclosure required by the hackathon.)
-
-Task	AI contribution	Human decision
-Framing comparison	Drafted candidate framings	Chose P1 and justified it
-Evidence map	Suggested candidate items	Moved untraceable items from [CASE] to [ASSUMPTION]
-Synthetic data and notebook	Generated starter code	Set the assumptions and checked outputs
-Verification logic	Proposed structure	Added the "report only if savings exceed baseline error" rule
-
-Tools and models used: list here [fill in]
-
-9. Dependencies
-
-Open-source libraries and pre-trained models are disclosed here as required by the hackathon rules.
-
-python >= 3.10
-numpy
-pandas
-scikit-learn
-matplotlib
-jupyter
-10. Team
-Name	Role
-[Neural Minds]	[Hackathon]
-
-License
-Participants shall retain full ownership and all intellectual property (IP) rights in and to any code, applications, designs, concepts, or other materials (collectively, the "Submission") 
-created during the Hackathon. The Organizer claims no ownership rights over your Submission.
+```mermaid
+flowchart TD
+    Start([Start 15-Min Execution Cycle]) --> Step1[1. Ingest Smart Meter, Solar, Weather & Registry Data]
+    Step1 --> Step2[2. Align Timestamps to Common 15-Min Grid & Score Quality]
+    Step2 --> Step3[3. Run Rolling Std Spike Detector for Anomalies]
+    Step3 --> Step4[4. Train Random Forest AI Model & Predict Net Demand]
+    Step4 --> Step5[5. Attribute 4-8 PM Peak to Buildings & Loads]
+    Step5 --> Step6[6. Filter Load Registry: Exclude Protected & Unregistered Loads]
+    Step6 --> Step7[7. MILP Optimization: Compute Shift Window & Check Rebound Limits]
+    Step7 --> Step8{Safe Schedule Found?}
+    
+    Step8 -- No --> SafeExit[Safe Exit: Log Reason, Issue 'No Action Needed']
+    Step8 -- Yes --> Step9[8. Present Proposal on Streamlit Dashboard UI]
+    
+    Step9 --> Step10{Human Staff Approval Gate}
+    Step10 -- Reject / Modify --> LogReject[Log Rejection Reason to SQLite Audit DB]
+    Step10 -- Approve --> LogApprove[Log Approval to SQLite Audit DB & Trigger Simulation]
+    
+    LogApprove --> Step11[9. Execute Shifted Schedule in Labelled Simulation Mode]
+    Step11 --> Step12[10. Performance Check: Compare vs Forecast Baseline Error Margin]
+    Step12 --> End([Cycle Complete - Await Next 15-Min Reading])
