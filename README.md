@@ -1,4 +1,4 @@
-PeakShift-AI
+**PeakShift-AI**
 
 A problem-first approach to "The 4 PM Spike" AI Synergy Hackathon 2026 · Case 05 · Track: AI for Energy & Environment
 
